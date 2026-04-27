@@ -37,7 +37,7 @@ export const CONFIG = {
   // ── Jetpack Altitude ──────────────────────────────────────
   JETPACK_ALTITUDE_FACTOR: 3.0,  // × tallest obstacle height
   JETPACK_TRANSITION_DURATION: 0.8, // seconds to ascend/descend
-  JETPACK_COINS_PER_CHUNK: 42,
+  JETPACK_COINS_PER_CHUNK: 52,
 
   // ── Collectibles / Power-ups ──────────────────────────────
   POWERUP_SPAWN_INTERVAL: [8, 20],   // random seconds between spawns

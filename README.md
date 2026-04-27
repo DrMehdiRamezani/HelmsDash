@@ -70,7 +70,16 @@ HelmsDash/
 ├── public/                  # ← Static files served at / by Vite — DROP ASSETS HERE
 │   └── assets/
 │       ├── models/          # GLB models loaded at runtime by AssetRegistry
-│       │   ├── player/      #   knight.glb
+│       │   ├── player/      #   knight.glb            ← mesh + skeleton (no animation)
+│       │   │                #   knight_run.glb         ← one GLB per animation clip
+│       │   │                #   knight_jump.glb
+│       │   │                #   knight_roll.glb
+│       │   │                #   knight_hurt.glb
+│       │   │                #   knight_land.glb
+│       │   │                #   knight_slide_left.glb
+│       │   │                #   knight_slide_right.glb
+│       │   │                #   knight_jetpack.glb
+│       │   │                #   knight_idle.glb
 │       │   ├── obstacles/   #   cart.glb  barrel.glb  gate.glb  low_beam.glb
 │       │   ├── carriages/   #   wagon_body.glb  wagon_ramp.glb  wagon_wheel.glb
 │       │   ├── collectibles/#   coin.glb  magnet.glb  doubler.glb  jetpack.glb  sprint_shoes.glb

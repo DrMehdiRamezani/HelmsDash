@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadFromFile } from './persist.js';
 
 // ──────────────────────────────────────────────────────────────
@@ -285,59 +286,168 @@ function buildBanner() {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Registry
+// Registry — meshes
 // ──────────────────────────────────────────────────────────────
 
 export const REGISTRY = {
-  'player/knight':           { placeholder: buildKnight,    glbPath: 'assets/models/player/knight.glb' },
-  'obstacles/cart':          { placeholder: buildCart,      glbPath: 'assets/models/obstacles/cart.glb' },
-  'obstacles/barrel':        { placeholder: buildBarrel,    glbPath: 'assets/models/obstacles/barrel.glb' },
-  'obstacles/gate':          { placeholder: buildGate,      glbPath: 'assets/models/obstacles/gate.glb' },
-  'obstacles/low_beam':      { placeholder: buildLowBeam,   glbPath: null },
-  'collectibles/coin':       { placeholder: buildCoin,      glbPath: 'assets/models/collectibles/coin.glb' },
-  'collectibles/magnet':     { placeholder: buildMagnet,    glbPath: 'assets/models/collectibles/magnet.glb' },
-  'collectibles/doubler':    { placeholder: buildDoubler,   glbPath: 'assets/models/collectibles/doubler.glb' },
-  'collectibles/jetpack':    { placeholder: buildJetpack,   glbPath: 'assets/models/collectibles/jetpack.glb' },
+  // knight_run.glb has the rigged skeleton — use it as the mesh source.
+  // knight.glb is static (no bones) and can't be animated.
+  'player/knight':             { placeholder: buildKnight,      glbPath: 'assets/models/player/knight_run.glb' },
+  'obstacles/cart':            { placeholder: buildCart,        glbPath: 'assets/models/obstacles/cart.glb' },
+  'obstacles/barrel':          { placeholder: buildBarrel,      glbPath: 'assets/models/obstacles/barrel.glb' },
+  'obstacles/gate':            { placeholder: buildGate,        glbPath: 'assets/models/obstacles/gate.glb' },
+  'obstacles/low_beam':        { placeholder: buildLowBeam,     glbPath: null },
+  'collectibles/coin':         { placeholder: buildCoin,        glbPath: 'assets/models/collectibles/coin.glb' },
+  'collectibles/magnet':       { placeholder: buildMagnet,      glbPath: 'assets/models/collectibles/magnet.glb' },
+  'collectibles/doubler':      { placeholder: buildDoubler,     glbPath: 'assets/models/collectibles/doubler.glb' },
+  'collectibles/jetpack':      { placeholder: buildJetpack,     glbPath: 'assets/models/collectibles/jetpack.glb' },
   'collectibles/sprint_shoes': { placeholder: buildSprintShoes, glbPath: 'assets/models/collectibles/sprint_shoes.glb' },
-  'environment/tree_oak':    { placeholder: buildTree,      glbPath: 'assets/models/environment/tree_oak.glb' },
-  'environment/building_a':  { placeholder: buildBuildingA, glbPath: 'assets/models/environment/building_a.glb' },
-  'environment/building_b':  { placeholder: buildBuildingB, glbPath: 'assets/models/environment/building_b.glb' },
-  'environment/banner':      { placeholder: buildBanner,    glbPath: 'assets/models/environment/banner.glb' },
+  'environment/tree_oak':      { placeholder: buildTree,        glbPath: 'assets/models/environment/tree_oak.glb' },
+  'environment/building_a':    { placeholder: buildBuildingA,   glbPath: 'assets/models/environment/building_a.glb' },
+  'environment/building_b':    { placeholder: buildBuildingB,   glbPath: 'assets/models/environment/building_b.glb' },
+  'environment/banner':        { placeholder: buildBanner,      glbPath: 'assets/models/environment/banner.glb' },
 };
 
-const _gltfLoader = new GLTFLoader();
-const _glbCache = new Map();
-const _overrides = {};
+// ──────────────────────────────────────────────────────────────
+// Animation name map — maps our canonical state names to the actual
+// clip names baked into the GLB by the exporter (e.g. Meshy.ai).
+// Open the browser console after loading to see what names your
+// GLB contains: [AssetRegistry] animations in knight.glb: "Run", "Jump" …
+// Then update the values here to match exactly.
+// ──────────────────────────────────────────────────────────────
+
+// Maps canonical state names → GLB file paths (one animation per file).
+// Add entries here as you export more clips from Meshy.ai.
+// Missing entries are silently skipped — placeholder geometry stays visible.
+export const ANIMATION_REGISTRY = {
+  run:          'assets/models/player/knight_run.glb',
+  sprint:       'assets/models/player/knight_sprint.glb',
+  // jump_up:   'assets/models/player/knight_jump.glb',
+  // roll:      'assets/models/player/knight_roll.glb',
+  hurt:      'assets/models/player/knight_hurt.glb',
+  // land:      'assets/models/player/knight_land.glb',
+  jetpack_hover: 'assets/models/player/knight_jetpack.glb',
+  // idle:      'assets/models/player/knight_idle.glb',
+};
+
+const _gltfLoader  = new GLTFLoader();
+const _glbCache    = new Map();             // path → THREE.Group (meshes)
+const _clipCache   = new Map();             // clipName → THREE.AnimationClip
+const _overrides   = {};
 
 export async function initAssetRegistry() {
-  const overrides = await loadFromFile('assets/data/asset_overrides.json');
-  if (overrides) Object.assign(_overrides, overrides);
+  console.log('[AssetRegistry] init start');
 
-  // Pre-load all GLBs so they are cached before the first chunk spawns.
-  const loads = Object.entries(REGISTRY).map(([key, entry]) => {
+  const overrides = await loadFromFile('assets/data/asset_overrides.json');
+  if (overrides) {
+    Object.assign(_overrides, overrides);
+    console.log('[AssetRegistry] overrides loaded:', Object.keys(_overrides));
+  }
+
+  // ── Pre-load mesh GLBs ───────────────────────────────────────
+  const meshEntries = Object.entries(REGISTRY);
+  console.log(`[AssetRegistry] queuing ${meshEntries.length} mesh loads`);
+
+  const meshLoads = meshEntries.map(([key, entry]) => {
     const path = _overrides[key] || entry.glbPath;
-    if (!path || _glbCache.has(path)) return Promise.resolve();
+    if (!path) {
+      console.log(`[AssetRegistry] skip ${key} — no glbPath`);
+      return Promise.resolve();
+    }
+    if (_glbCache.has(path)) {
+      console.log(`[AssetRegistry] skip ${key} — already cached`);
+      return Promise.resolve();
+    }
+    const url = '/' + path;
+    console.log(`[AssetRegistry] loading mesh ${key} from ${url}`);
     return new Promise(resolve => {
-      _gltfLoader.load(
-        '/' + path,   // leading slash → always absolute from Vite root
+      _gltfLoader.load(url,
         gltf => {
           _glbCache.set(path, gltf.scene);
-          const box = new THREE.Box3().setFromObject(gltf.scene);
           const size = new THREE.Vector3();
-          box.getSize(size);
-          console.info(`[AssetRegistry] ✓ ${path}  size: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)} m`);
+          new THREE.Box3().setFromObject(gltf.scene).getSize(size);
+          console.info(`[AssetRegistry] ✓ mesh  ${path}  ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m`);
+          // Cache any animations bundled in the same file (e.g. knight_run.glb)
+          if (gltf.animations.length > 0) {
+            // Find which canonical clip name maps to this path
+            const clipName = Object.entries(ANIMATION_REGISTRY).find(([, p]) => p === path)?.[0];
+            if (clipName) {
+              const clip = gltf.animations[0];
+              clip.name = clipName;
+              _clipCache.set(clipName, clip);
+              console.info(`[AssetRegistry] ✓ anim  "${clipName}" cached from mesh load  (${gltf.animations.length} clip(s) in file)`);
+            }
+          }
           resolve();
         },
         undefined,
-        err => {
-          console.warn(`[AssetRegistry] ✗ ${path} — not found or failed to parse (placeholder will be used)`);
+        (err) => {
+          console.warn(`[AssetRegistry] ✗ mesh  ${path} — not found (placeholder used)`, err?.message ?? err);
           resolve();
         }
       );
     });
   });
 
-  await Promise.all(loads);
+  // ── Pre-load animation GLBs (one clip per file) ──────────────
+  // Skip any whose path is already loaded as a mesh (e.g. knight_run.glb serves double duty).
+  // For those, the mesh load above already cached the clip.
+  const animEntries = Object.entries(ANIMATION_REGISTRY);
+  console.log(`[AssetRegistry] queuing ${animEntries.length} anim loads:`, animEntries.map(([k]) => k));
+
+  const animLoads = animEntries.map(([clipName, path]) => {
+    if (_clipCache.has(clipName)) {
+      console.log(`[AssetRegistry] skip anim "${clipName}" — already cached (shared with mesh load)`);
+      return Promise.resolve();
+    }
+    const url = '/' + path;
+    console.log(`[AssetRegistry] loading anim "${clipName}" from ${url}`);
+    return new Promise(resolve => {
+      _gltfLoader.load(url,
+        gltf => {
+          console.log(`[AssetRegistry] anim GLB loaded for "${clipName}": ${gltf.animations.length} clip(s) found`);
+          if (gltf.animations.length > 0) {
+            gltf.animations.forEach((c, i) =>
+              console.log(`  [${i}] name="${c.name}" duration=${c.duration.toFixed(2)}s tracks=${c.tracks.length}`)
+            );
+            const clip = gltf.animations[0];
+            clip.name = clipName;
+            _clipCache.set(clipName, clip);
+            console.info(`[AssetRegistry] ✓ anim  "${clipName}" cached`);
+          } else {
+            console.warn(`[AssetRegistry] ✗ anim  "${clipName}" — GLB has no animation tracks`);
+          }
+          resolve();
+        },
+        undefined,
+        (err) => {
+          console.warn(`[AssetRegistry] ✗ anim  "${clipName}" (${url}) — load failed:`, err?.message ?? err);
+          resolve();
+        }
+      );
+    });
+  });
+
+  await Promise.all([...meshLoads, ...animLoads]);
+  console.log(`[AssetRegistry] init complete — meshCache:${_glbCache.size} clipCache:${_clipCache.size}`);
+}
+
+/**
+ * Returns the cached AnimationClip for the given clip name, or null if not loaded yet.
+ * Usage in Player.js:
+ *   const clip = getAnimationClip('run');
+ *   if (clip) mixer.clipAction(clip).play();
+ */
+export function getAnimationClip(clipName) {
+  const clip = _clipCache.get(clipName) ?? null;
+  if (!clip) console.warn(`[AssetRegistry] getAnimationClip("${clipName}") — not in cache (clips available: [${[..._clipCache.keys()].join(', ')}])`);
+  return clip;
+}
+
+function _hasSkinnedMesh(obj) {
+  let found = false;
+  obj.traverse(c => { if (c.isSkinnedMesh) found = true; });
+  return found;
 }
 
 export function getAsset(key) {
@@ -350,7 +460,10 @@ export function getAsset(key) {
   const glbPath = _overrides[key] || entry.glbPath;
 
   if (glbPath && _glbCache.has(glbPath)) {
-    return _glbCache.get(glbPath).clone();
+    const cached = _glbCache.get(glbPath);
+    const skinned = _hasSkinnedMesh(cached);
+    console.log(`[AssetRegistry] getAsset("${key}") — ${skinned ? 'SkeletonUtils.clone' : '.clone'}`);
+    return skinned ? SkeletonUtils.clone(cached) : cached.clone();
   }
 
   // Return placeholder immediately, swap in GLB async if available

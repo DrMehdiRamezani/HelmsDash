@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
-import { getAsset } from '../core/AssetRegistry.js';
+import { getAsset, getAnimationClip } from '../core/AssetRegistry.js';
 
 export const PlayerState = {
   RUNNING: 'RUNNING',
@@ -52,6 +52,7 @@ export class Player {
     // Build mesh
     this.group = getAsset('player/knight');
     this.group.position.set(LANE_X[this.lane], 0, 0);
+    this.group.rotation.y = Math.PI;
     this._scene.add(this.group);
 
     // Running bob animation helper
@@ -63,6 +64,17 @@ export class Player {
 
     // Particle trail for jetpack
     this._jetTrail = null;
+
+    // Forward tilt during jetpack (radians)
+    this._jetTilt      = 0;
+    this._jetTiltDir   = 0; // +1 tilting in, -1 tilting out, 0 idle
+
+    // Animation mixer — drives skeletal clips loaded from separate GLBs
+    this._mixer        = new THREE.AnimationMixer(this.group);
+    this._activeAction  = null;
+    this._prevState     = null;
+    this._prevSprinting = false;
+    this._playClip('run'); // start with run so it plays immediately if GLB is ready
   }
 
   // ── Public API ──────────────────────────────────────────────
@@ -133,14 +145,40 @@ export class Player {
   }
 
   activateJetpack() {
-    this.state = PlayerState.JETPACK;
-    this._jumpT = 0;
+    this.state       = PlayerState.JETPACK;
+    this._jumpT      = 0;
+    this._jetTiltDir = 1;
   }
 
   deactivateJetpack() {
     if (this.state === PlayerState.JETPACK) {
-      this.state = PlayerState.RUNNING;
+      this.state       = PlayerState.RUNNING;
+      this._jetTiltDir = -1;
     }
+  }
+
+  // ── Animation helpers ────────────────────────────────────────
+
+  /**
+   * Switch to a named clip loaded from its own GLB file.
+   * If the file hasn't been placed yet the call is a no-op (placeholder stays).
+   * once=true plays the clip once then freezes on the last frame.
+   */
+  _playClip(name, { once = false, fadeIn = 0.15 } = {}) {
+    const clip = getAnimationClip(name);
+    if (!clip) return;
+
+    const next = this._mixer.clipAction(clip);
+    next.loop              = once ? THREE.LoopOnce : THREE.LoopRepeat;
+    next.clampWhenFinished = once;
+
+    if (this._activeAction && this._activeAction !== next) {
+      this._activeAction.fadeOut(fadeIn);
+      next.reset().fadeIn(fadeIn).play();
+    } else if (!this._activeAction) {
+      next.play();
+    }
+    this._activeAction = next;
   }
 
   // ── Update ──────────────────────────────────────────────────
@@ -148,9 +186,38 @@ export class Player {
   update(dt, game) {
     this._updateLaneSlide(dt);
     this._updateState(dt);
+    this._updateJetTilt(dt);
+    this._updateAnimation(dt);
     this._updatePowerups(dt, game);
     this._updateInvincibility(dt);
     this._updateBBox();
+  }
+
+  _updateJetTilt(dt) {
+    if (this._jetTiltDir === 0) return;
+    const MAX  = 74 * Math.PI / 180;
+    const RATE = MAX / CONFIG.JETPACK_TRANSITION_DURATION; // reach 84° in transition window
+    this._jetTilt += this._jetTiltDir * RATE * dt;
+    if (this._jetTilt >= MAX) { this._jetTilt = MAX; if (this._jetTiltDir > 0) this._jetTiltDir = 0; }
+    if (this._jetTilt <= 0)   { this._jetTilt = 0;   this._jetTiltDir = 0; }
+    this.group.rotation.x = -this._jetTilt;
+  }
+
+  _updateAnimation(dt) {
+    const sprinting = this.hasPowerup('sprint');
+
+    if (this.state !== this._prevState || sprinting !== this._prevSprinting) {
+      switch (this.state) {
+        case PlayerState.RUNNING: this._playClip(sprinting ? 'sprint' : 'run'); break;
+        case PlayerState.JUMPING: this._playClip('jump_up');                    break;
+        case PlayerState.ROLLING: this._playClip('roll');                       break;
+        case PlayerState.HURT:    this._playClip('hurt', { once: true });       break;
+        case PlayerState.JETPACK: this._playClip('jetpack_hover');              break;
+      }
+      this._prevState     = this.state;
+      this._prevSprinting = sprinting;
+    }
+    this._mixer.update(dt);
   }
 
   _startLaneSwitch(newLane) {
@@ -231,6 +298,10 @@ export class Player {
   _updatePowerups(dt, game) {
     this.activePowerups = this.activePowerups.filter(p => {
       p.timer -= dt;
+      // Debug: log timer every ~1s to verify duration
+      if (Math.floor((p.timer + dt) * 2) !== Math.floor(p.timer * 2)) {
+        console.log(`[Powerup] ${p.type} timer: ${p.timer.toFixed(2)}s / ${p.duration}s  (dt=${dt.toFixed(4)})`);
+      }
       if (p.timer <= 0) {
         p.onExpire(this, game);
         return false;
@@ -280,9 +351,18 @@ export class Player {
     this._invincT   = 0;
     this._laneT     = 1;
     this._bobT      = 0;
-    this._groundY   = 0;
+    this._groundY      = 0;
+    this._prevState     = null;
+    this._prevSprinting = false;
+    this._activeAction  = null;
+    this._jetTilt      = 0;
+    this._jetTiltDir   = 0;
+    this.group.rotation.set(0, Math.PI, 0);
+    this._mixer.stopAllAction();
+    this._playClip('run');
     this.activePowerups = [];
     this.group.position.set(LANE_X[CONFIG.PLAYER_START_LANE], 0, 0);
+    this.group.rotation.y = Math.PI;
     this.group.scale.set(1, 1, 1);
   }
 
