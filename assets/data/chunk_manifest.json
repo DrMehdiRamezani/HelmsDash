@@ -1,0 +1,42 @@
+[
+  {
+    "file": "chunk_easy_01.json",
+    "difficulty": "easy",
+    "spawnWeight": 1.0,
+    "hasObstacle": true,
+    "hasPowerup": false,
+    "notes": "Default easy chunk — single obstacle, coin row"
+  },
+  {
+    "file": "chunk_easy_02.json",
+    "difficulty": "easy",
+    "spawnWeight": 1.0,
+    "hasObstacle": false,
+    "hasPowerup": true,
+    "notes": "Easy chunk with power-up, no obstacle"
+  },
+  {
+    "file": "chunk_medium_01.json",
+    "difficulty": "medium",
+    "spawnWeight": 1.0,
+    "hasObstacle": true,
+    "hasPowerup": false,
+    "notes": "Medium chunk — two obstacles, zigzag coins"
+  },
+  {
+    "file": "chunk_medium_02.json",
+    "difficulty": "medium",
+    "spawnWeight": 0.8,
+    "hasObstacle": true,
+    "hasPowerup": true,
+    "notes": "Medium chunk with power-up"
+  },
+  {
+    "file": "chunk_hard_01.json",
+    "difficulty": "hard",
+    "spawnWeight": 1.0,
+    "hasObstacle": true,
+    "hasPowerup": false,
+    "notes": "Hard chunk — three obstacles"
+  }
+]

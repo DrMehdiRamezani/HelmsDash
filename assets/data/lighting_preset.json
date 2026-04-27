@@ -1,0 +1,11 @@
+{
+  "ambientColor": "0x7a6050",
+  "ambientIntensity": 0.4,
+  "sunColor": "0xfff5e0",
+  "sunIntensity": 1.8,
+  "sunPosition": [-20, 40, 20],
+  "fogColor": "0xc8b89a",
+  "fogNear": 40,
+  "fogFar": 120,
+  "skyColor": "0xc8b89a"
+}
