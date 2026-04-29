@@ -18,9 +18,10 @@ export class Environment {
   }
 
   init() {
-    // Pre-populate environment for initial view
-    for (let i = 0; i < 4; i++) {
-      this._generateStrip(this._totalZ - i * this._stripLength);
+    const strips = 4;
+    for (let i = 0; i < strips; i++) {
+      this._generateStrip(this._totalZ);
+      this._totalZ -= this._stripLength;
     }
   }
 
@@ -98,12 +99,14 @@ export class Environment {
       }
     };
 
+    this._totalZ += dz; // keep leading edge in sync with world scroll
+
     moveAll(this._leftObjects);
     moveAll(this._rightObjects);
 
-    // Generate more ahead if needed
-    if (this._leftObjects.length === 0 ||
-        Math.min(...this._leftObjects.map(o => o.position.z)) > -80) {
+    // Generate more strips until we have content at least LOOKAHEAD units ahead
+    const LOOKAHEAD = 120;
+    while (this._totalZ > -LOOKAHEAD) {
       this._totalZ -= this._stripLength;
       this._generateStrip(this._totalZ);
     }
