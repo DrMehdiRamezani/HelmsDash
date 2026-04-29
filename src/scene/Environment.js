@@ -117,6 +117,5 @@ export class Environment {
     this._leftObjects = [];
     this._rightObjects = [];
     this._totalZ = 0;
-    this.init();
   }
 }
