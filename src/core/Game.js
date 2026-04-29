@@ -53,7 +53,7 @@ export class Game {
     this._shaderMgr    = new ShaderManager();
 
     // Game state
-    this._speed       = CONFIG.BASE_SPEED;
+    this._speed       = CONFIG.START_SPEED;
     this._elapsed     = 0;
     this._playerName  = '';
     this._nextPowerupIn = this._randomPowerupInterval();
@@ -128,8 +128,7 @@ export class Game {
     await this._trackGen.init();
     this._environment.init();
 
-    // Reset speed + timers — start at PACE_SPEED (world scroll) which can differ from BASE_SPEED
-    this._speed        = CONFIG.PACE_SPEED;
+    this._speed        = CONFIG.START_SPEED;
     this._elapsed      = 0;
     this._nextPowerupIn = this._randomPowerupInterval();
 

@@ -434,13 +434,13 @@ export class TrackGenerator {
     return z;
   }
 
-  _spawnNext(speed = CONFIG.BASE_SPEED) {
+  _spawnNext(speed = CONFIG.START_SPEED) {
     // Place new chunk just ahead of the current frontier
     const spawnZ = this._frontierZ() - CONFIG.TRACK_CHUNK_LENGTH;
     this._spawnAt(spawnZ, speed);
   }
 
-  _spawnAt(z, speed = CONFIG.BASE_SPEED) {
+  _spawnAt(z, speed = CONFIG.START_SPEED) {
     const difficulty = this._getDifficulty(speed);
     let chunkGroup;
     let isObstacleChunk = false;

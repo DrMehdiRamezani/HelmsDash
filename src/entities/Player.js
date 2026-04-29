@@ -247,7 +247,7 @@ export class Player {
 
     switch (this.state) {
       case PlayerState.RUNNING: {
-        const bobRate = 8 * (CONFIG.PACE_SPEED / 10);
+        const bobRate = 8 * (CONFIG.START_SPEED / 10);
         this._bobT += dt * bobRate;
         this.group.position.y = this._groundY + Math.abs(Math.sin(this._bobT)) * 0.08;
         this.group.scale.y = 1;

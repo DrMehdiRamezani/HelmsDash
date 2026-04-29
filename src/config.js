@@ -19,10 +19,9 @@ export const CONFIG = {
   SPAWN_Z: -150,
 
   // ── Speed ─────────────────────────────────────────────────
-  BASE_SPEED: 1,              // m/s — world scroll speed at game start
-  PACE_SPEED: 15,              // m/s — player's running pace (bob animation rate + sprint feel)
-  SPEED_RAMP: 0.005,           // +m/s per second elapsed
-  MAX_SPEED: 35,
+  START_SPEED: 10,            // m/s — world scroll speed at session start
+  SPEED_RAMP: 0.4,           // m/s gained per second (reaches MAX in ~3 min from START)
+  MAX_SPEED: 50,
   SPRINT_MULTIPLIER: 1.6,
   PROCEDURAL_CHUNK_WEIGHT: 0.3, // probability of procedural vs preset chunk
   FORMATION_SPAWN_CHANCE: 0.08, // probability per chunk of triggering a formation
