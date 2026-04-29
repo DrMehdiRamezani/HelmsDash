@@ -145,14 +145,14 @@ export class Game {
     this._inputManager.on('moveLeft', this._boundLeft = () => {
       const p = this._player;
       if (!p) return;
-      if (p._groundY < 0.5 &&
+      if (p._groundY < 0.5 && p.state !== PlayerState.JETPACK &&
           this._trackGen?.isCarriageBlockingLane(p.targetLane - 1, p.group.position.z)) return;
       p.moveLeft();
     });
     this._inputManager.on('moveRight', this._boundRight = () => {
       const p = this._player;
       if (!p) return;
-      if (p._groundY < 0.5 &&
+      if (p._groundY < 0.5 && p.state !== PlayerState.JETPACK &&
           this._trackGen?.isCarriageBlockingLane(p.targetLane + 1, p.group.position.z)) return;
       p.moveRight();
     });
