@@ -107,8 +107,8 @@ export class Environment {
     // Generate more strips until we have content at least LOOKAHEAD units ahead
     const LOOKAHEAD = 120;
     while (this._totalZ > -LOOKAHEAD) {
-      this._totalZ -= this._stripLength;
       this._generateStrip(this._totalZ);
+      this._totalZ -= this._stripLength;
     }
   }
 

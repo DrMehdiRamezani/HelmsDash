@@ -2,15 +2,9 @@
 import * as THREE from 'three';
 import { Collectible } from '../entities/Collectible.js';
 import { CONFIG } from '../config.js';
-import { applyWorldBend } from '../core/worldBend.js';
+import { getAsset } from '../core/AssetRegistry.js';
 
-const COIN_ALT  = 5.5;   // Y height of jetpack coins
-const COIN_MAT  = new THREE.MeshStandardMaterial({
-  color: 0xffd700, emissive: 0xffaa00, emissiveIntensity: 0.9,
-  roughness: 0.1, metalness: 1.0,
-});
-applyWorldBend(COIN_MAT);
-const COIN_GEO  = new THREE.CylinderGeometry(0.38, 0.38, 0.09, 14);
+const COIN_ALT = 5.5;
 
 const LANE_CHANGE_EVERY = 20; // coins per lane segment
 
@@ -31,12 +25,12 @@ function spawnJetpackCoins(scene, playerX, playerZ) {
   for (let i = 0; i < count; i++) {
     const segLane = lanes[Math.floor(i / LANE_CHANGE_EVERY)];
     const laneX = (segLane - 1) * CONFIG.LANE_SPACING;
-    const coin = new THREE.Mesh(COIN_GEO, COIN_MAT);
-    coin.rotation.x = Math.PI / 2;
-    coin.position.set(laneX, COIN_ALT, playerZ - 8 - i * spacing);
-    coin.userData.role = 'coin';
-    coin.userData.collected = false;
-    group.add(coin);
+    const asset = getAsset('collectibles/coin');
+    asset.scale.setScalar(0.6);
+    asset.userData.role = 'coin';
+    asset.userData.collected = false;
+    asset.position.set(laneX, COIN_ALT, playerZ - 8 - i * spacing);
+    group.add(asset);
   }
   scene.add(group);
   return group;

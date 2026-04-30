@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadFromFile } from './persist.js';
 import { applyWorldBend } from './worldBend.js';
+import { CONFIG } from '../config.js';
 
 // ──────────────────────────────────────────────────────────────
 // Placeholder factory functions
@@ -400,6 +401,20 @@ export async function initAssetRegistry() {
           gltf.scene.traverse(child => {
             if (child.isMesh) [].concat(child.material).forEach(applyWorldBend);
           });
+          // Apply configurable emission to collectible GLBs
+          const collectibleName = key.startsWith('collectibles/') ? key.slice('collectibles/'.length) : null;
+          const emCfg = collectibleName && CONFIG.COLLECTIBLE_EMISSION[collectibleName];
+          if (emCfg) {
+            gltf.scene.traverse(child => {
+              if (!child.isMesh) return;
+              [].concat(child.material).forEach(mat => {
+                if (mat.emissive !== undefined) {
+                  mat.emissive.setHex(emCfg.color);
+                  mat.emissiveIntensity = emCfg.intensity * 0.5;
+                }
+              });
+            });
+          }
           const size = new THREE.Vector3();
           new THREE.Box3().setFromObject(gltf.scene).getSize(size);
           console.info(`[AssetRegistry] ✓ mesh  ${path}  ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m`);

@@ -25,8 +25,8 @@ const MAT_WAGON_RAMP   = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, rough
 let _activeCoinMaterial = MAT_COIN;
 export function setCoinMaterial(mat) { _activeCoinMaterial = mat; }
 
-const POWERUP_COLORS = { sprint: 0x44ddff, magnet: 0xff4444, doubler: 0xffdd00, jetpack: 0xff8800 };
-const POWERUP_TYPES  = ['sprint', 'magnet', 'doubler', 'jetpack'];
+const POWERUP_COLORS = { sprint_shoes: 0x2244ff, magnet: 0x2244ff, doubler: 0x2244ff, jetpack: 0xffcc00 };
+const POWERUP_TYPES  = ['sprint_shoes', 'magnet', 'doubler', 'jetpack'];
 
 function laneX(lane) {
   // Centre lane 1 → x=0; lane 0 → -LANE_SPACING; lane 2 → +LANE_SPACING
@@ -111,48 +111,62 @@ function buildRailTies() {
   return group;
 }
 
+// ── Coin helpers ───────────────────────────────────────────────
+function makeCoin() {
+  const asset = getAsset('collectibles/coin');
+  asset.scale.setScalar(0.6);
+  asset.userData.role = 'coin';
+  asset.userData.collected = false;
+  return asset;
+}
+
 // ── Coin patterns ──────────────────────────────────────────────
-function spawnCoinRow(group, lane, startZ, count) {
+// excl: { lane, z, halfZ } — skip any coin whose lane matches and z falls inside the zone.
+// For wagons the exclusion zone covers the full wagon top-surface (coins there are intentional),
+// but for ground obstacles we block coins at ground float height only.
+function _coinBlocked(coinLane, coinZ, excl) {
+  if (!excl) return false;
+  if (coinLane !== excl.lane) return false;
+  return coinZ >= excl.z - excl.halfZ && coinZ <= excl.z + excl.halfZ;
+}
+
+// Coins must stay within z = [startZ … -(TRACK_CHUNK_LENGTH - 0.5)] so they never
+// bleed into the next chunk (which may be a wagon/obstacle).
+const COIN_CHUNK_MIN_Z = -(CONFIG.TRACK_CHUNK_LENGTH - 0.5);
+
+function spawnCoinRow(group, lane, startZ, count, excl) {
   for (let i = 0; i < count; i++) {
-    const coin = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.28, 0.28, 0.07, 12),
-      _activeCoinMaterial
-    );
-    coin.rotation.x = Math.PI / 2;
-    coin.position.set(laneX(lane), CONFIG.COIN_FLOAT_HEIGHT, startZ - i * CONFIG.COIN_SPACING);
-    coin.userData.role = 'coin';
-    coin.userData.collected = false;
+    const z = startZ - i * CONFIG.COIN_SPACING;
+    if (z < COIN_CHUNK_MIN_Z) break;
+    if (_coinBlocked(lane, z, excl)) continue;
+    const coin = makeCoin();
+    coin.position.set(laneX(lane), CONFIG.COIN_FLOAT_HEIGHT, z);
     group.add(coin);
   }
 }
 
-function spawnCoinZigzag(group, startZ, count) {
+function spawnCoinZigzag(group, startZ, count, excl) {
   for (let i = 0; i < count; i++) {
-    const lane = i % 3;
-    const coin = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.28, 0.28, 0.07, 12),
-      _activeCoinMaterial
-    );
-    coin.rotation.x = Math.PI / 2;
-    coin.position.set(laneX(lane), CONFIG.COIN_FLOAT_HEIGHT, startZ - i * CONFIG.COIN_SPACING * 1.2);
-    coin.userData.role = 'coin';
-    coin.userData.collected = false;
+    const coinLane = i % 3;
+    const z = startZ - i * CONFIG.COIN_SPACING * 1.2;
+    if (z < COIN_CHUNK_MIN_Z) break;
+    if (_coinBlocked(coinLane, z, excl)) continue;
+    const coin = makeCoin();
+    coin.position.set(laneX(coinLane), CONFIG.COIN_FLOAT_HEIGHT, z);
     group.add(coin);
   }
 }
 
-function spawnCoinArc(group, lane, startZ, count) {
+function spawnCoinArc(group, lane, startZ, count, excl) {
+  // Compress spacing so all `count` coins fit within the chunk boundary
+  const availableZ = startZ - COIN_CHUNK_MIN_Z;
+  const arcSpacing = count > 1 ? availableZ / (count - 1) : CONFIG.COIN_SPACING;
   for (let i = 0; i < count; i++) {
+    const z = startZ - i * arcSpacing;
+    if (_coinBlocked(lane, z, excl)) continue;
     const t = i / (count - 1);
-    const arcY = CONFIG.COIN_FLOAT_HEIGHT + Math.sin(t * Math.PI) * 1.8;
-    const coin = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.28, 0.28, 0.07, 12),
-      _activeCoinMaterial
-    );
-    coin.rotation.x = Math.PI / 2;
-    coin.position.set(laneX(lane), arcY, startZ - i * CONFIG.COIN_SPACING);
-    coin.userData.role = 'coin';
-    coin.userData.collected = false;
+    const coin = makeCoin();
+    coin.position.set(laneX(lane), CONFIG.COIN_FLOAT_HEIGHT + Math.sin(t * Math.PI) * 1.8, z);
     group.add(coin);
   }
 }
@@ -162,18 +176,18 @@ function spawnPowerup(group, lane, z) {
   const type  = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
   const color = POWERUP_COLORS[type];
 
-  // Glowing floating orb placeholder
-  const orb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.28, 12, 12),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.8, roughness: 0.3, metalness: 0.5 })
-  );
-  // Outer halo ring
+  const asset = getAsset(`collectibles/${type}`);
+  asset.rotation.y = Math.PI / 2; // face perpendicular to track
+
+  // Halo ring kept for visibility regardless of GLB
   const halo = new THREE.Mesh(
     new THREE.TorusGeometry(0.42, 0.05, 8, 24),
     new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2, transparent: true, opacity: 0.7 })
   );
+  applyWorldBend(halo.material);
+
   const group2 = new THREE.Group();
-  group2.add(orb, halo);
+  group2.add(asset, halo);
   group2.position.set(laneX(lane), CONFIG.COIN_FLOAT_HEIGHT + 0.4, z);
   group2.userData.role = 'powerup';
   group2.userData.powerupType = type;
@@ -270,15 +284,10 @@ function _buildWagon(wg, W, H, L, hasRamp, skipRampVisual = false) {
   const coinY = platY + CONFIG.COIN_FLOAT_HEIGHT;
   const n     = CONFIG.CARRIAGE_COINS_PER_WAGON;
   for (let c = 0; c < n; c++) {
-    const coin = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.28, 0.28, 0.07, 12),
-      _activeCoinMaterial
-    );
-    coin.rotation.x = Math.PI / 2;
+    const coin = makeCoin();
+
     const t = (c + 1) / (n + 1);
     coin.position.set(0, coinY, -(t * L));
-    coin.userData.role      = 'coin';
-    coin.userData.collected = false;
     wg.add(coin);
   }
 }
@@ -337,18 +346,17 @@ export function generateProceduralChunk(difficulty, lastObstacleLane = -1, skipO
     const carriage     = buildCarriage(numWagons, carriageLane);
     carriage.position.z = -2;
     group.add(carriage);
+    // Record overflow so TrackGenerator can block obstacles in downstream chunks
+    const overflowMetres = 2 + numWagons * CONFIG.CARRIAGE_WAGON_LENGTH - CONFIG.TRACK_CHUNK_LENGTH;
+    group.userData.carriageOverflowChunks = overflowMetres > 0
+      ? Math.ceil(overflowMetres / CONFIG.TRACK_CHUNK_LENGTH)
+      : 0;
     return group;
   }
 
-  // Decide coin pattern
-  const coinPattern = pick(['row', 'zigzag', 'arc']);
-  const coinLane = randomInt(0, 2);
-  if (coinPattern === 'row')    spawnCoinRow(group, coinLane, -2, CONFIG.COINS_PER_CLUSTER);
-  else if (coinPattern === 'zigzag') spawnCoinZigzag(group, -2, CONFIG.COINS_PER_CLUSTER + 3);
-  else                          spawnCoinArc(group, coinLane, -2, CONFIG.COINS_PER_CLUSTER);
-
+  // Pick obstacle position first so coin patterns can avoid it
+  let obstacleExcl = null;
   if (!skipObstacles) {
-    // One obstacle per chunk — chunk is only 6 m so multiple placements always violate OBSTACLE_MIN_GAP.
     let lane;
     do { lane = randomInt(0, 2); } while (lane === lastObstacleLane && Math.random() > 0.3);
 
@@ -357,14 +365,31 @@ export function generateProceduralChunk(difficulty, lastObstacleLane = -1, skipO
     const obs  = buildObstacle(type);
     obs.position.set(laneX(lane), 0, zPos);
     group.add(obs);
-    group.userData.lastObstacleLane = lane; // read back by TrackGenerator to update _lastObstacleLane
+    group.userData.lastObstacleLane = lane;
 
-    // Occasionally spawn a power-up in a different lane
+    // Exclusion half-depth: largest obstacle footprint is ~2 m, add 0.5 m padding
+    obstacleExcl = { lane, z: zPos, halfZ: 1.5 };
+
+    // Occasionally spawn a power-up — keep trying until it clears the obstacle footprint
     if (Math.random() < 0.20) {
-      const pwrLane = randomInt(0, 2);
-      spawnPowerup(group, pwrLane, -(randomInt(2, len - 2)));
+      let pwrLane, pwrZ, attempts = 0;
+      do {
+        pwrLane = randomInt(0, 2);
+        pwrZ    = -(randomInt(2, len - 2));
+        attempts++;
+      } while (_coinBlocked(pwrLane, pwrZ, obstacleExcl) && attempts < 10);
+      if (!_coinBlocked(pwrLane, pwrZ, obstacleExcl)) {
+        spawnPowerup(group, pwrLane, pwrZ);
+      }
     }
   }
+
+  // Decide coin pattern — pass exclusion zone so coins skip obstacle footprint
+  const coinPattern = pick(['row', 'zigzag', 'arc']);
+  const coinLane = randomInt(0, 2);
+  if (coinPattern === 'row')         spawnCoinRow(group, coinLane, -2, CONFIG.COINS_PER_CLUSTER, obstacleExcl);
+  else if (coinPattern === 'zigzag') spawnCoinZigzag(group, -2, CONFIG.COINS_PER_CLUSTER + 3, obstacleExcl);
+  else                               spawnCoinArc(group, coinLane, -2, CONFIG.COINS_PER_CLUSTER, obstacleExcl);
 
   return group;
 }
@@ -380,7 +405,8 @@ export class TrackGenerator {
     this._lastObstacleLane = -1;
     this._lastChunkHadObstacle = false;
     this._formations = [];
-    this._formationQueue = []; // pending formation slots to spawn next
+    this._formationQueue = [];
+    this._wagonsOverflowChunks = 0; // how many upcoming chunks are inside a wagon body
     this._trackRenderer = new TrackInstancedRenderer(scene);
   }
 
@@ -450,6 +476,12 @@ export class TrackGenerator {
       // Mark obstacle only after the last slot so the gap falls after the formation.
       chunkGroup = this._buildFormationSlot(this._formationQueue.shift());
       isObstacleChunk = this._formationQueue.length === 0;
+    } else if (this._wagonsOverflowChunks > 0) {
+      // Inside a wagon body from a previous carriage — force coins-only to prevent
+      // obstacles/low_beams appearing inside the wagon.
+      chunkGroup = generateProceduralChunk(difficulty, this._lastObstacleLane, true);
+      this._wagonsOverflowChunks--;
+      isObstacleChunk = false;
     } else if (this._lastChunkHadObstacle) {
       // Mandatory breathing room: coins only, no carriages, no obstacles.
       chunkGroup = generateProceduralChunk(difficulty, this._lastObstacleLane, true);
@@ -460,13 +492,16 @@ export class TrackGenerator {
         const formation = this._pickFormation(difficulty);
         if (formation?.slots?.length) {
           for (let i = 1; i < formation.slots.length; i++) {
-            // Annotate each slot with which lanes had 'ramp' in the preceding slot,
-            // so wagons that follow a ramp skip the wall and get a trigger instead.
             const prev = formation.slots[i - 1];
             const prevRampLanes = new Set(
               [0, 1, 2].filter(li => prev[`lane${li}`] === 'ramp')
             );
-            this._formationQueue.push({ ...formation.slots[i], _prevRampLanes: prevRampLanes });
+            // Wagon body (L=12 m) always overflows into the next 6 m slot — block obstacles
+            // in any lane that had a wagon in the preceding slot.
+            const prevWagonLanes = new Set(
+              [0, 1, 2].filter(li => prev[`lane${li}`] === 'wagon' || prev[`lane${li}`] === 'wagon_ramp')
+            );
+            this._formationQueue.push({ ...formation.slots[i], _prevRampLanes: prevRampLanes, _prevWagonLanes: prevWagonLanes });
           }
           chunkGroup = this._buildFormationSlot(formation.slots[0]);
           // Single-slot formation ends immediately; multi-slot gap is set when queue drains.
@@ -481,9 +516,12 @@ export class TrackGenerator {
           if (candidate?.children.length > 0) chunkGroup = candidate;
         }
         if (!chunkGroup) chunkGroup = generateProceduralChunk(difficulty, this._lastObstacleLane);
-        // Persist the lane used so the next obstacle chunk avoids it.
         if (chunkGroup.userData.lastObstacleLane !== undefined)
           this._lastObstacleLane = chunkGroup.userData.lastObstacleLane;
+        // If this chunk contains a carriage, block obstacles for its overflow chunks.
+        // Subtract 1 because the mandatory breathing room already covers one chunk.
+        if (chunkGroup.userData.carriageOverflowChunks > 0)
+          this._wagonsOverflowChunks = chunkGroup.userData.carriageOverflowChunks - 1;
         isObstacleChunk = true;
       }
     }
@@ -554,6 +592,8 @@ export class TrackGenerator {
         ramp.position.z = 0;
         group.add(ramp);
       } else {
+        // Skip if a wagon from the previous formation slot overflows into this lane/chunk
+        if (slot._prevWagonLanes?.has(li)) continue;
         const obs = buildObstacle(type);
         obs.position.set(laneX(li), 0, obsZ);
         group.add(obs);
@@ -657,5 +697,6 @@ export class TrackGenerator {
     }
     this._formationQueue = [];
     this._lastChunkHadObstacle = false;
+    this._wagonsOverflowChunks = 0;
   }
 }

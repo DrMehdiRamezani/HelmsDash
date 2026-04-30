@@ -25,17 +25,17 @@ import { Jetpack }     from '../powerups/Jetpack.js';
 const GameState = { MENU: 'MENU', PLAYING: 'PLAYING', PAUSED: 'PAUSED', GAMEOVER: 'GAMEOVER' };
 
 const POWERUP_FACTORIES = {
-  sprint:  () => new SprintShoes(),
-  magnet:  () => new Magnet(),
-  doubler: () => new CoinDoubler(),
-  jetpack: () => new Jetpack(),
+  sprint_shoes: () => new SprintShoes(),
+  magnet:       () => new Magnet(),
+  doubler:      () => new CoinDoubler(),
+  jetpack:      () => new Jetpack(),
 };
 
 const POWERUP_COLORS = {
-  sprint:  '#44ddff',
-  magnet:  '#ff4444',
-  doubler: '#ffdd00',
-  jetpack: '#ff8800',
+  sprint_shoes: '#44ddff',
+  magnet:       '#ff4444',
+  doubler:      '#ffdd00',
+  jetpack:      '#ff8800',
 };
 
 export class Game {
@@ -382,9 +382,13 @@ export class Game {
       // Force world-matrix update so setFromObject uses the current scrolled position,
       // not the stale matrixWorld from before this frame's chunk scroll.
       obs.updateWorldMatrix(true, true);
+      const isGate = obs.userData?.obstacleType === 'gate';
+      const rolling = player.state === PlayerState.ROLLING;
       obs.traverse(child => {
         if (hitMesh || !child.isMesh) return;
         meshBox.setFromObject(child);
+        // Rolling player ducks under a gate — skip all gate collision
+        if (isGate && rolling) return;
         if (player.bbox.intersectsBox(meshBox)) {
           hitMesh = child;
           hitObs  = obs;

@@ -20,7 +20,7 @@ export const CONFIG = {
 
   // ── Speed ─────────────────────────────────────────────────
   START_SPEED: 10,            // m/s — world scroll speed at session start
-  SPEED_RAMP: 0.4,           // m/s gained per second (reaches MAX in ~3 min from START)
+  SPEED_RAMP: 0.01,           // m/s gained per second (reaches MAX in ~3 min from START)
   MAX_SPEED: 50,
   SPRINT_MULTIPLIER: 1.6,
   PROCEDURAL_CHUNK_WEIGHT: 0.3, // probability of procedural vs preset chunk
@@ -48,6 +48,17 @@ export const CONFIG = {
   MAGNET_PULL_SPEED: 30,           // m/s — speed at which magnet pulls coins toward player
   DOUBLER_DURATION: 10,
   JETPACK_DURATION: 10,
+
+  // ── Collectible emission ──────────────────────────────────
+  // Each entry: [r, g, b] emissive color + intensity applied to all meshes in the GLB.
+  // Set intensity to 0 to disable emission for that collectible.
+  COLLECTIBLE_EMISSION: {
+    coin:         { color: 0xffa500, intensity: 0.6 },
+    magnet:       { color: 0x2244ff, intensity: 0.5 },
+    doubler:      { color: 0x2244ff, intensity: 0.7 },
+    jetpack:      { color: 0xffcc00, intensity: 0.5 },
+    sprint_shoes: { color: 0x2244ff, intensity: 0.5 },
+  },
 
   // ── Coins ─────────────────────────────────────────────────
   COIN_COLLECT_RADIUS: 1.8,        // metres — how close player must be to collect a coin
