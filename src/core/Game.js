@@ -20,7 +20,7 @@ import { GameOver }  from '../ui/GameOver.js';
 import { SprintShoes } from '../powerups/SprintShoes.js';
 import { Magnet }      from '../powerups/Magnet.js';
 import { CoinDoubler } from '../powerups/CoinDoubler.js';
-import { Jetpack }     from '../powerups/Jetpack.js';
+import { Jetpack, resetJetpackCounter } from '../powerups/Jetpack.js';
 
 const GameState = { MENU: 'MENU', PLAYING: 'PLAYING', PAUSED: 'PAUSED', GAMEOVER: 'GAMEOVER' };
 
@@ -131,6 +131,7 @@ export class Game {
     this._speed        = CONFIG.START_SPEED;
     this._elapsed      = 0;
     this._nextPowerupIn = this._randomPowerupInterval();
+    resetJetpackCounter();
 
     // Reset turn bend
     this._turnPhase = 'waiting';
@@ -262,11 +263,17 @@ export class Game {
     this._trackGen.update(dt, effectiveSpeed);
     this._environment.update(effectiveSpeed * dt);
 
-    // Scroll jetpack coin groups with the world
+    // Scroll jetpack coin groups and portal with the world
     const dz = effectiveSpeed * dt;
     for (const buff of player.activePowerups) {
       const coinGroup = buff._getCoinGroup?.();
       if (coinGroup) coinGroup.position.z += dz;
+
+      const portal = buff._getPortal?.();
+      if (portal && !portal.collected) {
+        portal.group.position.z += dz;
+        portal.update(dt);
+      }
     }
 
     // Camera follow player X, world Z=0 (player stays at z=0, world moves)
@@ -278,6 +285,7 @@ export class Game {
     this._checkObstacles();
     this._checkCoins(dt);
     this._checkPowerups();
+    this._checkPortals();
 
     // Powerup spawning (in-track powerups placed by TrackGenerator)
     this._nextPowerupIn -= dt;
@@ -487,6 +495,16 @@ export class Game {
           // this.audioManager.play('powerup', '/assets/audio/sfx/powerup_collect.wav');
         }
       }
+    }
+  }
+
+  _checkPortals() {
+    const player = this._player;
+    if (!player) return;
+    const playerPos = player.group.position;
+    for (const buff of player.activePowerups) {
+      const portal = buff._getPortal?.();
+      if (portal) portal.checkCollect(playerPos);
     }
   }
 

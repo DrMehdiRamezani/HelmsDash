@@ -1,12 +1,16 @@
 // src/powerups/Jetpack.js
 import * as THREE from 'three';
 import { Collectible } from '../entities/Collectible.js';
+import { VibejamPortal } from '../entities/VibejamPortal.js';
 import { CONFIG } from '../config.js';
 import { getAsset } from '../core/AssetRegistry.js';
 
 const COIN_ALT = 5.5;
-
 const LANE_CHANGE_EVERY = 20; // coins per lane segment
+
+// Persists across Jetpack instances within a run; reset by resetJetpackCounter()
+let _activationCount = 0;
+export function resetJetpackCounter() { _activationCount = 0; }
 
 function spawnJetpackCoins(scene, playerX, playerZ) {
   const group = new THREE.Group();
@@ -14,7 +18,6 @@ function spawnJetpackCoins(scene, playerX, playerZ) {
   const count = CONFIG.JETPACK_COINS_PER_CHUNK;
   const spacing = 2.2;
 
-  // Start in the player's lane, then pick two different random lanes for the next segments
   const startLane = Math.round((playerX / CONFIG.LANE_SPACING) + 1); // 0|1|2
   const lanes = [Math.max(0, Math.min(2, startLane))];
   for (let s = 1; s * LANE_CHANGE_EVERY < count; s++) {
@@ -39,6 +42,7 @@ function spawnJetpackCoins(scene, playerX, playerZ) {
 export class Jetpack extends Collectible {
   constructor() {
     let _coinGroup = null;
+    let _portal    = null;
 
     super({
       type:     'jetpack',
@@ -48,12 +52,21 @@ export class Jetpack extends Collectible {
       onActivate: (player, game) => {
         player.activateJetpack();
         game?.sceneManager?.setJetpackAltitude(true, 2.8);
+
         if (game?.sceneManager?.scene) {
-          _coinGroup = spawnJetpackCoins(
-            game.sceneManager.scene,
-            player.group.position.x,
-            player.group.position.z,
-          );
+          const scene  = game.sceneManager.scene;
+          const pz     = player.group.position.z;
+          const px     = player.group.position.x;
+
+          _coinGroup = spawnJetpackCoins(scene, px, pz);
+
+          _activationCount++;
+          if (_activationCount % 3 === 0) {
+            // Place the portal roughly in the middle of the coin trail
+            const midCount = Math.floor(CONFIG.JETPACK_COINS_PER_CHUNK / 2);
+            const portalZ  = pz - 8 - midCount * 2.2;
+            _portal = new VibejamPortal(scene, 0, COIN_ALT, portalZ);
+          }
         }
       },
       onExpire: (player, game) => {
@@ -63,10 +76,14 @@ export class Jetpack extends Collectible {
           game.sceneManager.scene.remove(_coinGroup);
           _coinGroup = null;
         }
+        if (_portal) {
+          _portal.destroy();
+          _portal = null;
+        }
       },
     });
 
-    // Expose coin group so Game can scroll it with the world
     this._getCoinGroup = () => _coinGroup;
+    this._getPortal    = () => _portal;
   }
 }
