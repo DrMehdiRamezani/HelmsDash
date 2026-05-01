@@ -7,10 +7,17 @@ const EXIT_URL       = 'https://vibej.am/portal/2026';
 const COLLECT_RADIUS = 1.6;
 
 // Build the redirect URL with Vibe Jam query params.
-function buildPortalUrl(baseUrl, { username, speed, ref } = {}) {
+function buildPortalUrl(baseUrl, { username, speed, hp, ref, extra = {} } = {}) {
   const u = new URL(baseUrl);
+  // Re-apply any params that were forwarded from the incoming portal (continuity)
+  for (const [k, v] of Object.entries(extra)) {
+    if (k !== 'portal' && k !== 'ref') u.searchParams.set(k, v);
+  }
+  // Our own values override whatever was in extra
   if (username) u.searchParams.set('username', username);
   if (speed    != null) u.searchParams.set('speed', String(Math.round(speed)));
+  if (hp       != null) u.searchParams.set('hp', String(Math.round(hp)));
+  u.searchParams.set('color', 'gold');
   if (ref)     u.searchParams.set('ref', ref);
   return u.toString();
 }
@@ -139,17 +146,28 @@ export class VibejamPortal {
    * forwarded to the next game via query params.
    * Returns true on the frame the portal is entered.
    */
-  checkCollect(playerWorldPos, { username = '', speed = 0 } = {}) {
+  /**
+   * @param {THREE.Vector3} playerWorldPos
+   * @param {object} opts
+   * @param {string}  opts.username
+   * @param {number}  opts.speed        — m/s
+   * @param {number}  opts.hp           — 0..MAX_HP (will be normalised to 1..100)
+   * @param {number}  opts.maxHp        — for normalisation
+   * @param {object}  opts.incomingParams — original ?params from portal arrival, forwarded on return
+   */
+  checkCollect(playerWorldPos, { username = '', speed = 0, hp = null, maxHp = 10, incomingParams = {} } = {}) {
     if (this._collected) return false;
     if (playerWorldPos.distanceTo(this.group.position) < COLLECT_RADIUS) {
       this._collected    = true;
       this.group.visible = false;
 
+      const hpNorm = hp != null ? Math.max(1, Math.round((hp / maxHp) * 100)) : null;
+
       const destination = this._refUrl
-        // Return portal — redirect back to the source game, forwarding params
-        ? buildPortalUrl(this._refUrl, { username, speed, ref: GAME_URL })
+        // Return portal — redirect back to the source game, forwarding all original params
+        ? buildPortalUrl(this._refUrl, { username, speed, hp: hpNorm, ref: GAME_URL, extra: incomingParams })
         // Exit portal — send player into the Vibe Jam webring
-        : buildPortalUrl(EXIT_URL, { username, speed, ref: GAME_URL });
+        : buildPortalUrl(EXIT_URL, { username, speed, hp: hpNorm, ref: GAME_URL });
 
       window.location.href = destination;
       return true;

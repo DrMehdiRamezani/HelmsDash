@@ -20,12 +20,14 @@ async function bootstrap() {
   const canvas = document.createElement('canvas');
   app.appendChild(canvas);
 
-  // Boot the game engine — show progress bar while assets load
-  const loading = new LoadingScreen();
+  // Portal arrivals must load silently — no loading screen per Vibe Jam spec.
+  const isPortalArrival = params.get('portal') === 'true';
+
+  const loading = isPortalArrival ? null : new LoadingScreen();
   const game = new Game(canvas);
   if (import.meta.env.DEV) window._game = game;
-  await game.init((loaded, total) => loading.onProgress(loaded, total));
-  loading.destroy();
+  await game.init(loading ? (l, t) => loading.onProgress(l, t) : null);
+  loading?.destroy();
 
   // Apply saved theme on boot
   const savedTheme = SaveManager.getTheme();
@@ -55,11 +57,13 @@ async function bootstrap() {
 
   // If arriving from another Vibe Jam game via the portal, skip the home screen
   // and drop the player straight into the game with continuity.
-  if (params.get('portal') === 'true') {
+  if (isPortalArrival) {
     const portalName = params.get('username') || SaveManager.getPlayerName() || 'Knight';
     const refUrl     = params.get('ref') || null;
+    // Capture all original incoming params so the return portal can forward them back
+    const incomingParams = Object.fromEntries(params.entries());
     SaveManager.setPlayerName(portalName);
-    game.startFromMenu(portalName, { refUrl });
+    game.startFromMenu(portalName, { refUrl, incomingParams });
   } else {
     showHomePage();
   }

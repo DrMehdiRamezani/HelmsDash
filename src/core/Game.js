@@ -114,9 +114,10 @@ export class Game {
 
   // ── Session lifecycle ──────────────────────────────────────
 
-  async startFromMenu(playerName, { refUrl } = {}) {
-    this._playerName = playerName;
-    this._pendingRefUrl = refUrl || null;
+  async startFromMenu(playerName, { refUrl, incomingParams = {} } = {}) {
+    this._playerName     = playerName;
+    this._pendingRefUrl  = refUrl || null;
+    this._incomingParams = incomingParams;
     const veil = this._showVeil();
     await this._startSession(playerName);
     this._hideVeil(veil);
@@ -610,7 +611,13 @@ export class Game {
     const player = this._player;
     if (!player) return;
     const playerPos = player.group.position;
-    const portalParams = { username: this._playerName, speed: this._speed };
+    const portalParams = {
+      username:       this._playerName,
+      speed:          this._speed,
+      hp:             player.hp,
+      maxHp:          CONFIG.MAX_HP,
+      incomingParams: this._incomingParams || {},
+    };
 
     for (const buff of player.activePowerups) {
       const portal = buff._getPortal?.();
