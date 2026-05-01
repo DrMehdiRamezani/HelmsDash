@@ -7,6 +7,7 @@ export class AudioManager {
   constructor() {
     this._muted = false;
     this._sounds = {};
+    this._buffers = {}; // pre-decoded AudioBuffers, keyed by src
     this._music = null;
     this._initialized = false;
   }
@@ -71,6 +72,18 @@ export class AudioManager {
     if (sound && !sound.playing()) sound.play();
   }
 
+  // Pre-decode an audio file so playGaplessLoop can start it instantly.
+  async preloadGaplessLoop(src) {
+    if (!this._initialized) return;
+    if (this._buffers[src]) return; // already cached
+    const ctx = this._Howler.ctx;
+    if (!ctx) return;
+    try {
+      const buf = await fetch(src).then(r => r.arrayBuffer());
+      this._buffers[src] = await ctx.decodeAudioData(buf);
+    } catch (_) {}
+  }
+
   // Truly gapless loop via Web Audio API — no MP3 encoder-padding silence.
   // Falls back to playLoop if the AudioContext is unavailable.
   async playGaplessLoop(key, src, options = {}) {
@@ -82,8 +95,14 @@ export class AudioManager {
 
     const volume = options.volume ?? CONFIG.SFX_VOLUME;
     try {
-      const buf = await fetch(src).then(r => r.arrayBuffer());
-      const audioBuffer = await ctx.decodeAudioData(buf);
+      // Use pre-decoded buffer if available, otherwise fetch now
+      const audioBuffer = this._buffers[src]
+        ?? await (async () => {
+          const buf = await fetch(src).then(r => r.arrayBuffer());
+          const decoded = await ctx.decodeAudioData(buf);
+          this._buffers[src] = decoded;
+          return decoded;
+        })();
 
       const gainNode = ctx.createGain();
       gainNode.gain.value = this._muted ? 0 : volume;
@@ -129,9 +148,10 @@ export class AudioManager {
 
     if (fadeMs > 0) {
       sound.fade(sound.volume(), 0, fadeMs);
-      setTimeout(() => sound.stop(), fadeMs);
+      setTimeout(() => { sound.stop(); delete this._sounds[key]; }, fadeMs);
     } else {
       sound.stop();
+      delete this._sounds[key];
     }
   }
 

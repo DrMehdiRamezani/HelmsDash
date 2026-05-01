@@ -620,16 +620,18 @@ export class Game {
 
   playHomeMusic() {
     this.audioManager.stopLoop('gameplay_music', 600);
+    // Pre-decode gameplay music while user is on the home screen so it starts instantly later
+    this.audioManager.preloadGaplessLoop('/assets/music/steps/gameplay_music.mp3');
     setTimeout(() => {
       this.audioManager.playGaplessLoop('home_music', '/assets/music/steps/home_music.mp3', { volume: CONFIG.HOME_MUSIC_VOLUME });
-    }, 620);
+    }, 600);
   }
 
   playGameplayMusic() {
     this.audioManager.stopLoop('home_music', 600);
     setTimeout(() => {
       this.audioManager.playGaplessLoop('gameplay_music', '/assets/music/steps/gameplay_music.mp3', { volume: CONFIG.GAMEPLAY_MUSIC_VOLUME });
-    }, 620);
+    }, 600);
   }
 
   _randomPowerupInterval() {
