@@ -20,6 +20,9 @@ const LANE_X = [
   CONFIG.LANE_SPACING,
 ];
 
+// Pre-computed constant — avoids Object.values() + spread allocation every frame/jump
+const MAX_OBSTACLE_HEIGHT = Math.max(...Object.values(CONFIG.OBSTACLE_HEIGHT));
+
 export class Player {
   constructor(scene) {
     this._scene = scene;
@@ -59,6 +62,7 @@ export class Player {
     this._bobT = 0;
     // Invincibility flash
     this._invincT = 0;
+    this._wasInvinc = false;
     // Original scale for roll
     this._baseScaleY = 1;
 
@@ -89,7 +93,7 @@ export class Player {
       return;
     }
     if (this.state === PlayerState.RUNNING) {
-      const maxObs = Math.max(...Object.values(CONFIG.OBSTACLE_HEIGHT));
+      const maxObs = MAX_OBSTACLE_HEIGHT;
       const h = maxObs * CONFIG.JUMP_HEIGHT_FACTOR;
       this._jumpVy = Math.sqrt(2 * CONFIG.GRAVITY * h);
       this.state   = PlayerState.JUMPING;
@@ -312,9 +316,14 @@ export class Player {
 
   _updateInvincibility(dt) {
     if (this._invincT <= 0) {
-      this.group.traverse(c => { if (c.isMesh) c.visible = true; });
+      // Only restore visibility on the single frame invincibility ends
+      if (this._wasInvinc) {
+        this._wasInvinc = false;
+        this.group.traverse(c => { if (c.isMesh) c.visible = true; });
+      }
       return;
     }
+    this._wasInvinc = true;
     this._invincT -= dt;
     // Flash effect — blink every 0.1s
     const visible = Math.floor(this._invincT / 0.1) % 2 === 0;
@@ -349,6 +358,7 @@ export class Player {
     this.xp         = 0;
     this.alive      = true;
     this._invincT   = 0;
+    this._wasInvinc = false;
     this._laneT     = 1;
     this._bobT      = 0;
     this._groundY      = 0;

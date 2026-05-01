@@ -34,5 +34,271 @@
         "lane2": null
       }
     ]
+  },
+  {
+    "id": "Trio",
+    "difficulty": [
+      "easy",
+      "medium",
+      "hard"
+    ],
+    "spawnWeight": 1,
+    "slots": [
+      {
+        "lane0": "wagon",
+        "lane1": null,
+        "lane2": "wagon"
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": "wagon",
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      }
+    ]
+  },
+  {
+    "id": "boring",
+    "difficulty": [
+      "easy",
+      "medium",
+      "hard"
+    ],
+    "spawnWeight": 1,
+    "slots": [
+      {
+        "lane0": null,
+        "lane1": "wagon",
+        "lane2": "ramp"
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": "wagon"
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": "ramp",
+        "lane1": null,
+        "lane2": "wagon"
+      },
+      {
+        "lane0": "wagon",
+        "lane1": "wagon",
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      }
+    ]
+  },
+  {
+    "id": "sidetracked",
+    "difficulty": [
+      "easy",
+      "medium",
+      "hard"
+    ],
+    "spawnWeight": 1,
+    "slots": [
+      {
+        "lane0": null,
+        "lane1": "ramp",
+        "lane2": null
+      },
+      {
+        "lane0": "gate",
+        "lane1": "wagon",
+        "lane2": "cart"
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      }
+    ]
+  },
+  {
+    "id": "jump",
+    "difficulty": [
+      "easy",
+      "medium",
+      "hard"
+    ],
+    "spawnWeight": 1,
+    "slots": [
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": "wagon"
+      },
+      {
+        "lane0": null,
+        "lane1": "wagon",
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": "cart",
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": "barrel",
+        "lane2": null
+      }
+    ]
+  },
+  {
+    "id": "maze",
+    "difficulty": [
+      "easy",
+      "medium",
+      "hard"
+    ],
+    "spawnWeight": 1,
+    "slots": [
+      {
+        "lane0": "barrel",
+        "lane1": "wagon",
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": "gate"
+      },
+      {
+        "lane0": "ramp",
+        "lane1": "wagon",
+        "lane2": null
+      },
+      {
+        "lane0": "wagon",
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": "barrel"
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      }
+    ]
+  },
+  {
+    "id": "swish",
+    "difficulty": [
+      "easy",
+      "medium",
+      "hard"
+    ],
+    "spawnWeight": 1,
+    "slots": [
+      {
+        "lane0": "wagon",
+        "lane1": null,
+        "lane2": "wagon"
+      },
+      {
+        "lane0": null,
+        "lane1": "cart",
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": "barrel"
+      },
+      {
+        "lane0": null,
+        "lane1": "wagon",
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": "barrel"
+      }
+    ]
   }
 ]
