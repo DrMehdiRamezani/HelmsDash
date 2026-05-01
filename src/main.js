@@ -53,8 +53,16 @@ async function bootstrap() {
     return;
   }
 
-  // Show homepage on startup
-  showHomePage();
+  // If arriving from another Vibe Jam game via the portal, skip the home screen
+  // and drop the player straight into the game with continuity.
+  if (params.get('portal') === 'true') {
+    const portalName = params.get('username') || SaveManager.getPlayerName() || 'Knight';
+    const refUrl     = params.get('ref') || null;
+    SaveManager.setPlayerName(portalName);
+    game.startFromMenu(portalName, { refUrl });
+  } else {
+    showHomePage();
+  }
 }
 
 bootstrap().catch(console.error);

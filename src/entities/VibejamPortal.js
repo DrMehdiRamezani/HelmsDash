@@ -1,16 +1,39 @@
 // src/entities/VibejamPortal.js
-// Rare portal that appears at jetpack coin altitude every 3rd jetpack — opens vibej.am on collect
+// Portal that redirects to the Vibe Jam 2026 webring (or back to a ref game).
 
 import * as THREE from 'three';
 
-const PORTAL_URL    = 'https://vibej.am/2026/';
+const EXIT_URL       = 'https://vibej.am/portal/2026';
 const COLLECT_RADIUS = 1.6;
 
+// Build the redirect URL with Vibe Jam query params.
+function buildPortalUrl(baseUrl, { username, speed, ref } = {}) {
+  const u = new URL(baseUrl);
+  if (username) u.searchParams.set('username', username);
+  if (speed    != null) u.searchParams.set('speed', String(Math.round(speed)));
+  if (ref)     u.searchParams.set('ref', ref);
+  return u.toString();
+}
+
+// The game's own URL (no query params) — used as ?ref= when exiting.
+const GAME_URL = window.location.origin + window.location.pathname;
+
 export class VibejamPortal {
-  constructor(scene, x, y, z) {
+  /**
+   * @param {THREE.Scene} scene
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @param {object} [opts]
+   * @param {string} [opts.refUrl]   If set this is a return portal — redirect here instead of webring
+   * @param {string} [opts.label]    Override the floating label text
+   */
+  constructor(scene, x, y, z, opts = {}) {
     this._scene     = scene;
     this._collected = false;
     this._time      = 0;
+    this._refUrl    = opts.refUrl || null;   // null = exit portal; string = return portal
+    this._label     = opts.label  || (this._refUrl ? '← Return Portal' : 'Vibe Jam Portal');
 
     this.group = new THREE.Group();
     this.group.position.set(x, y, z);
@@ -53,11 +76,44 @@ export class VibejamPortal {
       this.group.add(new THREE.Mesh(hGeo, hMat));
     }
 
-    // Purple point light so nearby coins/walls pick up the glow
-    this._light = new THREE.PointLight(0xaa00ff, 4, 10);
+    // Tint return portals gold/orange to visually distinguish them
+    if (this._refUrl) {
+      ringMat.color.setHex(0xff8800);
+      ringMat.emissive.setHex(0xcc4400);
+      discMat.color.setHex(0x884400);
+      this._light = new THREE.PointLight(0xff6600, 4, 10);
+    } else {
+      this._light = new THREE.PointLight(0xaa00ff, 4, 10);
+    }
     this.group.add(this._light);
 
+    // Floating label via CSS2DObject substitute — use a sprite canvas texture
+    this._labelSprite = this._makeLabel(this._label, !!this._refUrl);
+    this._labelSprite.position.set(0, 1.8, 0);
+    this.group.add(this._labelSprite);
+
     scene.add(this.group);
+  }
+
+  _makeLabel(text, isReturn) {
+    const canvas  = document.createElement('canvas');
+    canvas.width  = 512;
+    canvas.height = 80;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 512, 80);
+    ctx.fillStyle = isReturn ? 'rgba(255,140,0,0.85)' : 'rgba(170,0,255,0.85)';
+    ctx.roundRect(8, 8, 496, 64, 12);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font      = 'bold 28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 256, 40);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(3.2, 0.5, 1);
+    return sprite;
   }
 
   update(dt) {
@@ -78,13 +134,24 @@ export class VibejamPortal {
     this.group.scale.setScalar(s);
   }
 
-  // Returns true if the player touched the portal
-  checkCollect(playerWorldPos) {
+  /**
+   * Call every frame. Pass current player name + game speed so they get
+   * forwarded to the next game via query params.
+   * Returns true on the frame the portal is entered.
+   */
+  checkCollect(playerWorldPos, { username = '', speed = 0 } = {}) {
     if (this._collected) return false;
     if (playerWorldPos.distanceTo(this.group.position) < COLLECT_RADIUS) {
-      this._collected = true;
+      this._collected    = true;
       this.group.visible = false;
-      window.open(PORTAL_URL, '_blank', 'noopener');
+
+      const destination = this._refUrl
+        // Return portal — redirect back to the source game, forwarding params
+        ? buildPortalUrl(this._refUrl, { username, speed, ref: GAME_URL })
+        // Exit portal — send player into the Vibe Jam webring
+        : buildPortalUrl(EXIT_URL, { username, speed, ref: GAME_URL });
+
+      window.location.href = destination;
       return true;
     }
     return false;

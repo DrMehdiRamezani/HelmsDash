@@ -466,6 +466,112 @@
   padding: 8px 0;
 }
 
+/* ─── Virtual Controls (mobile only) ─────────────────────── */
+#vctrl {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 160px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 20px 24px;
+  pointer-events: none;
+  z-index: 50;
+  /* safe-area insets for notched phones */
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+/* ── Action buttons (left side) ── */
+#vctrl-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: all;
+}
+
+.vctrl-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid rgba(245,200,66,0.5);
+  background: rgba(20,10,2,0.72);
+  backdrop-filter: blur(6px);
+  color: var(--gold);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+  transition: background 0.1s, transform 0.08s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+.vctrl-btn span {
+  font-family: var(--font-medieval);
+  font-size: 0.55rem;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+  opacity: 0.75;
+}
+
+.vctrl-btn:active {
+  background: rgba(245,200,66,0.22);
+  transform: scale(0.92);
+}
+
+/* ── Joystick (right side) ── */
+#vctrl-joystick-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: all;
+  touch-action: none;
+}
+
+#vctrl-joystick-track {
+  position: relative;
+  width: 130px;
+  height: 60px;
+  border-radius: 30px;
+  background: rgba(20,10,2,0.72);
+  backdrop-filter: blur(6px);
+  border: 2px solid rgba(245,200,66,0.45);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#vctrl-joystick-thumb {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 36%, rgba(245,200,66,0.9), rgba(180,130,20,0.7));
+  border: 2px solid rgba(245,200,66,0.6);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  will-change: transform;
+  transition: transform 0.04s linear;
+}
+
+#vctrl-joystick-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 130px;
+  padding: 0 10px;
+  font-size: 0.75rem;
+  color: var(--gold);
+  opacity: 0.55;
+  user-select: none;
+}
+
 /* ─── Achievement Toast ───────────────────────────────────── */
 .achievement-toast {
   position: absolute;

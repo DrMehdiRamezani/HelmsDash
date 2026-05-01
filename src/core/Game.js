@@ -16,8 +16,9 @@ import { SfxPool }        from './SfxPool.js';
 import { initAssetRegistry } from './AssetRegistry.js';
 import { setTurnBend } from './worldBend.js';
 import { HUD }      from '../ui/HUD.js';
-import { PauseMenu } from '../ui/PauseMenu.js';
-import { GameOver }  from '../ui/GameOver.js';
+import { PauseMenu }      from '../ui/PauseMenu.js';
+import { GameOver }        from '../ui/GameOver.js';
+import { VibejamPortal }   from '../entities/VibejamPortal.js';
 
 import { SprintShoes } from '../powerups/SprintShoes.js';
 import { Magnet }      from '../powerups/Magnet.js';
@@ -55,7 +56,7 @@ export class Game {
 
     this.sceneManager  = new SceneManager(this._renderer);
     this.audioManager  = new AudioManager();
-    this._inputManager = new InputManager();
+    this._inputManager = this.inputManager = new InputManager();
     this._shaderMgr    = new ShaderManager();
 
     // Game state
@@ -65,6 +66,7 @@ export class Game {
     this._nextPowerupIn = this._randomPowerupInterval();
     this._jetTrail    = null;
     this._buffGlows   = [];
+    this._returnPortal = null; // spawned when player arrives via ?portal=true&ref=
 
     // These are created per-session
     this._trackGen    = null;
@@ -112,11 +114,19 @@ export class Game {
 
   // ── Session lifecycle ──────────────────────────────────────
 
-  async startFromMenu(playerName) {
+  async startFromMenu(playerName, { refUrl } = {}) {
     this._playerName = playerName;
+    this._pendingRefUrl = refUrl || null;
     const veil = this._showVeil();
     await this._startSession(playerName);
     this._hideVeil(veil);
+
+    // Spawn a return portal when the player arrived from another game
+    if (this._pendingRefUrl) {
+      const scene = this.sceneManager.scene;
+      // Place it a few chunks ahead on the center lane so the player runs into it early
+      this._returnPortal = new VibejamPortal(scene, 0, 0, -20, { refUrl: this._pendingRefUrl });
+    }
   }
 
   _showVeil() {
@@ -261,6 +271,7 @@ export class Game {
     if (this._player)  { this._player.destroy(); this._player = null; }
     if (this._hud)     { this._hud.destroy(); this._hud = null; }
     if (this._pauseMenu) { this._pauseMenu.destroy(); this._pauseMenu = null; }
+    if (this._returnPortal) { this._returnPortal.destroy(); this._returnPortal = null; }
   }
 
   _showMenu() {
@@ -355,6 +366,12 @@ export class Game {
         portal.group.position.z += dz;
         portal.update(dt);
       }
+    }
+
+    // Scroll and animate the return portal (spawned when arriving from another game)
+    if (this._returnPortal && !this._returnPortal.collected) {
+      this._returnPortal.group.position.z += dz;
+      this._returnPortal.update(dt);
     }
 
     // Camera follow player X, world Z=0 (player stays at z=0, world moves)
@@ -593,9 +610,15 @@ export class Game {
     const player = this._player;
     if (!player) return;
     const playerPos = player.group.position;
+    const portalParams = { username: this._playerName, speed: this._speed };
+
     for (const buff of player.activePowerups) {
       const portal = buff._getPortal?.();
-      if (portal) portal.checkCollect(playerPos);
+      if (portal) portal.checkCollect(playerPos, portalParams);
+    }
+
+    if (this._returnPortal && !this._returnPortal.collected) {
+      this._returnPortal.checkCollect(playerPos, portalParams);
     }
   }
 

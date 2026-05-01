@@ -3,11 +3,13 @@
 
 import './hud.css';
 import { CONFIG } from '../config.js';
+import { VirtualControls } from './VirtualControls.js';
 
 export class HUD {
   constructor(game) {
     this._game = game;
     this._el = null;
+    this._vctrl = null;
     this._hpEl = null;
     this._xpEl = null;
     this._coinEl = null;
@@ -53,6 +55,7 @@ export class HUD {
     });
 
     this._buildHearts();
+    this._vctrl = new VirtualControls(this._game.inputManager);
   }
 
   _buildHearts() {
@@ -124,6 +127,7 @@ export class HUD {
   hide() { this._el.style.display = 'none'; }
 
   destroy() {
+    this._vctrl?.destroy();
     this._el?.remove();
   }
 }
