@@ -2,6 +2,7 @@
 // Splash screen — name input, high score display, begin button
 
 import { SaveManager } from '../core/SaveManager.js';
+import { fetchTopScores } from '../leaderboard.js';
 
 export class HomePage {
   constructor(onStart, onThemeChange) {
@@ -50,6 +51,11 @@ export class HomePage {
         </div>
 
         <button class="big-btn" id="begin-btn">⚔️ Begin the Run!</button>
+
+        <div style="margin-top:18px;width:100%;">
+          <div style="font-size:0.75rem;opacity:0.5;letter-spacing:0.1em;margin-bottom:6px;">🏆 TOP KNIGHTS</div>
+          <div id="hp-leaderboard" style="font-size:0.78rem;opacity:0.8;">Loading…</div>
+        </div>
       </div>
     `;
 
@@ -82,6 +88,22 @@ export class HomePage {
 
     // Auto-focus name field
     setTimeout(() => input.focus(), 100);
+
+    // Load leaderboard
+    fetchTopScores().then(scores => {
+      const lbEl = el.querySelector('#hp-leaderboard');
+      if (!lbEl) return;
+      if (!scores.length) { lbEl.textContent = 'No runs yet — be the first!'; return; }
+      lbEl.innerHTML = scores.map(s =>
+        `<div style="display:flex;justify-content:space-between;padding:2px 0;">
+          <span><span style="opacity:0.4">#${s.rank} </span>${s.name}</span>
+          <span>💰 ${s.score.toLocaleString()}</span>
+        </div>`
+      ).join('');
+    }).catch(() => {
+      const lbEl = el.querySelector('#hp-leaderboard');
+      if (lbEl) lbEl.textContent = '';
+    });
   }
 
   _dismiss(cb) {
