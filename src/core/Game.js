@@ -26,6 +26,10 @@ import { Jetpack, resetJetpackCounter } from '../powerups/Jetpack.js';
 
 const GameState = { MENU: 'MENU', PLAYING: 'PLAYING', PAUSED: 'PAUSED', GAMEOVER: 'GAMEOVER' };
 
+// Module-level scratch vectors — reused every frame to avoid per-frame heap allocation
+const _scratchVec  = new THREE.Vector3();
+const _scratchVec2 = new THREE.Vector3();
+
 const POWERUP_FACTORIES = {
   sprint_shoes: () => new SprintShoes(),
   magnet:       () => new Magnet(),
@@ -414,27 +418,26 @@ export class Game {
     const py = player.group.position.y;
 
     let newGroundY = 0;
-    const tmpPos = new THREE.Vector3();
     const { ramps, platforms } = this._trackGen.getCarriagePhysics();
 
     for (const ramp of ramps) {
       ramp.updateWorldMatrix(true, false);
-      ramp.getWorldPosition(tmpPos);
+      ramp.getWorldPosition(_scratchVec);
       const { halfW, halfZ, rampHeight } = ramp.userData;
-      if (Math.abs(px - tmpPos.x) < halfW &&
-          pz > tmpPos.z - halfZ && pz < tmpPos.z + halfZ) {
+      if (Math.abs(px - _scratchVec.x) < halfW &&
+          pz > _scratchVec.z - halfZ && pz < _scratchVec.z + halfZ) {
         // t = 0 at front face (player starts climbing), 1 at back face (fully on top)
-        const t = (tmpPos.z + halfZ - pz) / (2 * halfZ);
+        const t = (_scratchVec.z + halfZ - pz) / (2 * halfZ);
         newGroundY = Math.max(newGroundY, t * rampHeight);
       }
     }
 
     for (const plat of platforms) {
       plat.updateWorldMatrix(true, false);
-      plat.getWorldPosition(tmpPos);
+      plat.getWorldPosition(_scratchVec);
       const { halfW, halfZ, platformY } = plat.userData;
-      if (Math.abs(px - tmpPos.x) < halfW &&
-          pz > tmpPos.z - halfZ && pz < tmpPos.z + halfZ) {
+      if (Math.abs(px - _scratchVec.x) < halfW &&
+          pz > _scratchVec.z - halfZ && pz < _scratchVec.z + halfZ) {
         newGroundY = Math.max(newGroundY, platformY);
       }
     }
@@ -490,8 +493,7 @@ export class Game {
     if (hitMesh) {
       const f = arr => arr.map(v => (+v).toFixed(2)).join(', ');
       const pb = this._player.bbox;
-      const meshWorldPos = new THREE.Vector3();
-      hitMesh.getWorldPosition(meshWorldPos);
+      hitMesh.getWorldPosition(_scratchVec);
       // console.log(
       //   `[HIT]`
       //   + `\n  obstacle type : ${hitObs.userData?.obstacleType ?? '(unknown)'}`
@@ -531,14 +533,13 @@ export class Game {
       if (coin.userData.collected) continue;
 
       coin.updateWorldMatrix(true, false);
-      const coinPos = new THREE.Vector3();
-      coin.getWorldPosition(coinPos);
+      coin.getWorldPosition(_scratchVec);
 
-      const dist = player.group.position.distanceTo(coinPos);
+      const dist = player.group.position.distanceTo(_scratchVec);
 
       if (hasMagnet && dist < magnetRadius) {
-        const dir = player.group.position.clone().sub(coinPos).normalize();
-        coin.position.addScaledVector(dir, Math.min(dist, CONFIG.MAGNET_PULL_SPEED * dt));
+        _scratchVec2.copy(player.group.position).sub(_scratchVec).normalize();
+        coin.position.addScaledVector(_scratchVec2, Math.min(dist, CONFIG.MAGNET_PULL_SPEED * dt));
       }
 
       if (dist < CONFIG.COIN_COLLECT_RADIUS) {
@@ -567,10 +568,9 @@ export class Game {
       if (pwr.userData.collected) continue;
 
       pwr.updateWorldMatrix(true, false);
-      const pwrPos = new THREE.Vector3();
-      pwr.getWorldPosition(pwrPos);
+      pwr.getWorldPosition(_scratchVec);
 
-      const dist = player.group.position.distanceTo(pwrPos);
+      const dist = player.group.position.distanceTo(_scratchVec);
       if (dist < 1.5) {
         pwr.userData.collected = true;
         pwr.visible = false;

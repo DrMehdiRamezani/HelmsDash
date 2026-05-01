@@ -43,7 +43,11 @@ export class ChunkPool {
     while (chunk.children.length > 0) {
       const child = chunk.children[0];
       child.traverse(obj => {
-        if (obj.isMesh) [].concat(obj.material).forEach(m => m.dispose());
+        if (!obj.isMesh) return;
+        // Only dispose materials explicitly marked as chunk-owned (e.g. procedural ground).
+        // Shared asset materials cloned from AssetRegistry must NOT be disposed here —
+        // disposing them corrupts the cached base and triggers shader recompiles on next use.
+        [].concat(obj.material).forEach(m => { if (m.userData._chunkOwned) m.dispose(); });
       });
       chunk.remove(child);
     }
